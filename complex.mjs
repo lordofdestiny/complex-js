@@ -1,84 +1,105 @@
-function signSymbol(number) {
-  return String.fromCharCode(44 - Math.sign(number));
-}
-
-class Complex {
-  constructor({ re, im, r, arg }) {
+import Tools from "./tools.mjs";
+export default class Complex {
+  #re;
+  #im;
+  #r;
+  #arg;
+  static #printMode = Complex.PRINT_MODE.RECT;
+  static Zero = new Complex();
+  constructor({ re, im, r, arg } = { re: 0, im: 0 }) {
     if (re !== undefined && im !== undefined) {
-      this._re = re;
-      this._im = im;
-      this._r = this._magnitude(re, im);
-      this._arg = this._argument(re, im);
+      this.#re = re;
+      this.#im = im;
+      this.#r = Math.hypot(re, im);
+      this.#arg = Math.atan2(im, re);
     } else if (r !== undefined && arg !== undefined) {
-      this._r = r;
-      this._arg = arg;
-      this._re = this._r * Math.cos(this._arg);
-      this._im = this._r * Math.sin(this._arg);
+      this.#re = r * Math.cos(arg);
+      this.#im = r * Math.sin(arg);
+      this.#r = r;
+      this.#arg = arg;
     } else {
       throw new Error("Wrong arguments supplied!");
     }
   }
 
-  _magnitude(a, b) {
-    return Math.hypot(a, b);
+  static get PRINT_MODE() {
+    return {
+      get POL() {
+        return "polar";
+      },
+      get RECT() {
+        return "rectangular";
+      },
+    };
   }
 
-  _argument(a, b) {
-    return Math.atan2(b, a);
+  static setPrintMode(mode) {
+    switch (mode) {
+      case this.PRINT_MODE.RECT:
+      case this.PRINT_MODE.POL:
+        this.#printMode = mode;
+        break;
+      default:
+        throw new Error("Invalid print mode set!");
+    }
   }
 
-  _wrapArg(arg) {
-    return this._argument(Math.cos(arg), Math.sin(arg));
+  static getPrintMode() {
+    return this.#printMode;
   }
 
-  _updateRect() {
-    this._re = this.Mag * Math.cos(this.Arg);
-    this._im = this.Mag * Math.sin(this.Arg);
+  #wrapArg(arg) {
+    return Math.atan2(Math.sin(arg), Math.cos(arg));
   }
 
-  _updatePolar() {
-    this._mag = (this.Re ** 2 + this.Im ** 2) ** 0.5;
-    this._arg = this._argument(this.Re, this.Im);
+  #updateRect() {
+    this.#re = this.Mag * Math.cos(this.Arg);
+    this.#im = this.Mag * Math.sin(this.Arg);
+  }
+
+  #updatePolar() {
+    this.#r = Math.hypot(this.Re, this.Im);
+    this.#arg = Math.atan2(this.Im, this.Re);
   }
 
   get Re() {
-    return this._re;
+    return this.#re;
   }
 
   set Re(value) {
-    this._re = value;
-    this._updatePolar();
+    this.#re = value;
+    this.#updatePolar();
   }
 
   get Im() {
-    return this._im;
+    return this.#im;
   }
 
   set Im(value) {
-    this._im = value;
-    this._updatePolar();
+    this.#im = value;
+    this.#updatePolar();
   }
 
   get Mag() {
-    return this._r;
+    return this.#r;
   }
 
   set Mag(value) {
-    this._r = value;
-    this._updateRect();
+    this.#r = value;
+    this.#updateRect();
   }
 
   get Arg() {
-    return this._arg;
+    return this.#arg;
   }
 
   set Arg(value) {
-    this._arg = value;
-    this._updateRect();
+    this.#arg = value;
+    this.#updateRect();
   }
 
   wrapArgument() {
-    this.Arg = this._wrapArg(this.Arg);
+    this.Arg = this.#wrapArg(this.Arg);
   }
 
   add(z) {
@@ -106,7 +127,7 @@ class Complex {
   }
 
   conj() {
-    return new Complex({ re: this._re, im: -this._im });
+    return new Complex({ re: this.#re, im: -this.#im });
   }
 
   pow(z) {
@@ -119,30 +140,30 @@ class Complex {
 
   nthroot(n) {
     const newMag = this.Mag ** 1 / n;
-    const a = new Array(n).fill(0);
-    return a.map(
+    const arr = new Array(n).fill(0);
+    return arr.map(
       (_, k) =>
         new Complex({ r: newMag, arg: (this.Arg + 2 * Math.PI * k) / n })
     );
   }
 
-  ln(k = 0) {
+  ln(branch = 0) {
     return new Complex({
       re: Math.log(this.Mag),
-      im: this.Arg + 2 * k * Math.PI,
+      im: this.Arg + 2 * branch * Math.PI,
     });
   }
 
-  toString() {
-    if (Complex.printMode == 0) {
-      return `${this.Re.toFixed(6)} ${signSymbol(this.Im)}${Math.abs(
+  toString(mode = Complex.PRINT_MODE.RECT) {
+    const printMode = mode ?? Complex.#printMode;
+    if (printMode == Complex.PRINT_MODE.RECT) {
+      return `${this.Re.toFixed(6)} ${Tools.signSymbol(this.Im)}${Math.abs(
         this.Im
       ).toFixed(6)}i`;
+    } else if (printMode == Complex.PRINT_MODE.POL) {
+      return `${this.Mag.toFixed(6)} * e^(i* ${this.Arg.toFixed(6)})`;
     } else {
-      return `${this.Mag.toFixed(6)} * e^(i* ${this.Arg.toFixed(6)} )`;
+      throw new Error("Invalid print mode!");
     }
   }
 }
-Complex.printMode = 0;
-
-export default Complex;
